@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranked Choice Voting</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 600px; margin: auto; padding: 20px; }
+        h2 { text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        select, input[type="text"] { width: 100%; padding: 10px; }
+        button { width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Ranked Choice Voting</h2>
+        <form id="voteForm">
+            <div class="form-group">
+                <label for="voterName">Your Name (First Choice)</label>
+                <input type="text" id="voterName" name="voterName" required placeholder="Enter your name">
+            </div>
+            <div class="form-group">
+                <label for="rank2">2nd Choice</label>
+                <select id="rank2" name="rank2" required>
+                    <option value="">Select a candidate</option>
+                    <option value="candidateA">Candidate A</option>
+                    <option value="candidateB">Candidate B</option>
+                    <option value="candidateC">Candidate C</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="rank3">3rd Choice</label>
+                <select id="rank3" name="rank3" required>
+                    <option value="">Select a candidate</option>
+                    <option value="candidateA">Candidate A</option>
+                    <option value="candidateB">Candidate B</option>
+                    <option value="candidateC">Candidate C</option>
+                </select>
+            </div>
+            <button type="button" onclick="submitVote()">Submit Vote</button>
+        </form>
+        <button type="button" onclick="viewAllVotes()">View All Votes</button>
+        <div id="results"></div>
+        <div id="allVotes" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        
+        const repoOwner = "Dragonix36";
+        const repoName = "RCVforTWW";
+        const filePath = "votes.json";
+        const githubToken = "votescount";  
+
+        // GitHub API URL
+        const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+
+        async function submitVote() {
+            const voterName = document.getElementById("voterName").value;
+            const rank2 = document.getElementById("rank2").value;
+            const rank3 = document.getElementById("rank3").value;
+
+            if (voterName && rank2 && rank3) {
+                const newVote = { voterName, rank2, rank3 };
+                const votes = await getExistingVotes();
+                votes.push(newVote);
+                await updateVotesOnGitHub(votes);
+
+                alert("Vote submitted successfully!");
+                document.getElementById("voteForm").reset();
+                calculateResults();
+            } else {
+                alert("Please enter your name and select candidates for each rank.");
+            }
+        }
+
+        // Get existing votes from GitHub
+        async function getExistingVotes() {
+            const response = await fetch(apiUrl, {
+                headers: {
+                    Authorization: `token ${githubToken}`,
+                    Accept: "application/vnd.github.v3+json",
+                },
+            });
+            const data = await response.json();
+            const content = atob(data.content);
+            return JSON.parse(content);
+        }
+
+        // Update votes in GitHub
+        async function updateVotesOnGitHub(votes) {
+            const response = await fetch(apiUrl, {
+                headers: {
+                    Authorization: `token ${githubToken}`,
+                    Accept: "application/vnd.github.v3+json",
+                },
+            });
+            const data = await response.json();
+            const sha = data.sha;
+            const updatedContent = btoa(JSON.stringify(votes, null, 2));
+
+            await fetch(apiUrl, {
+                method: "PUT",
+                headers: {
+                    Authorization: `token ${githubToken}`,
+                    Accept: "application/vnd.github.v3+json",
+                },
+                body: JSON.stringify({
+                    message: "Update votes",
+                    content: updatedContent,
+                    sha: sha,
+                }),
+            });
+        }
+
+        // Fetch and display all votes
+        async function viewAllVotes() {
+            const votes = await getExistingVotes();
+            let allVotesText = "<h3>All Collected Votes:</h3>";
+            votes.forEach((vote, index) => {
+                allVotesText += `<p>Vote ${index + 1}: ${vote.voterName} chose - 2nd Choice: ${vote.rank2}, 3rd Choice: ${vote.rank3}</p>`;
+            });
+            document.getElementById("allVotes").innerHTML = allVotesText;
+        }
+    </script>
+</body>
+</html>
